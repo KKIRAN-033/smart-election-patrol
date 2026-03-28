@@ -100,12 +100,11 @@ export default function Map({ officers, incidents, stations = [], onReportIncide
   return (
     <div className={`relative w-full h-screen font-sans overflow-hidden ${activeLayer.id === 'command' || activeLayer.id === 'satellite' ? 'bg-black' : 'bg-gray-100'}`}>
       {isPolice && <PoliceTopbar />}
-      {isPolice && (
-        <FloatingDashboard
-          activeTracker={activeTracker}
-          onResolve={handleDashboardResolve}
-        />
-      )}
+      <FloatingDashboard
+        activeTracker={activeTracker}
+        onResolve={handleDashboardResolve}
+        isPolice={isPolice}
+      />
 
       {/* GLOBAL LOGOUT BUTTON */}
       <button 

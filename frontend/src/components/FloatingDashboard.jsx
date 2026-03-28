@@ -1,20 +1,20 @@
-export default function FloatingDashboard({ activeTracker, onResolve }) {
+export default function FloatingDashboard({ activeTracker, onResolve, isPolice = false }) {
   if (!activeTracker) return null;
 
   const { officerName, distance, eta, incidentId, incidentType, severityLevel } = activeTracker;
 
   return (
-    <div className="absolute top-6 right-6 z-[2000] w-80 pointer-events-auto">
+    <div className={`absolute ${isPolice ? 'top-20' : 'top-4'} right-6 z-[2000] w-80 pointer-events-auto`}>
       <div className="bg-[#ffffff]/95 backdrop-blur-3xl border border-gray-200 rounded-2xl shadow-[0_10px_50px_rgba(0,0,0,0.15)] overflow-hidden transition-all duration-500 ease-out transform translate-y-0 opacity-100">
         
-        {/* Header Ribbon (Zomato/Rapido style) */}
+        {/* Header Ribbon */}
         <div className={`p-4 relative overflow-hidden flex items-center gap-3 ${severityLevel === 'High' ? 'bg-red-600' : severityLevel === 'Medium' ? 'bg-orange-500' : 'bg-green-500'}`}>
           <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-inner">
              <span className="text-xl">🚔</span>
           </div>
           <div>
             <h2 className="text-white font-black text-lg tracking-wide leading-tight flex items-center gap-2">
-              Unit {officerName} En Route
+              {isPolice ? `Unit ${officerName} En Route` : `Officer ${officerName} Coming`}
               <span className="w-2 h-2 bg-white rounded-full animate-ping"></span>
             </h2>
             <p className="text-white text-xs font-bold uppercase tracking-widest mt-1 opacity-95 items-center flex gap-1">
@@ -47,12 +47,24 @@ export default function FloatingDashboard({ activeTracker, onResolve }) {
               </div>
             </div>
 
-            <button 
-              onClick={() => onResolve(incidentId)}
-              className="w-full bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-4 rounded-xl shadow-[0_5px_15px_rgba(239,68,68,0.3)] transition-all transform hover:scale-[1.02] active:scale-95 uppercase tracking-wider text-sm mt-4 border border-red-400 cursor-pointer"
-            >
-              Force Scene Clear
-            </button>
+            {/* Police: Resolve Button */}
+            {isPolice && (
+              <button 
+                onClick={() => onResolve(incidentId)}
+                className="w-full bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-4 rounded-xl shadow-[0_5px_15px_rgba(239,68,68,0.3)] transition-all transform hover:scale-[1.02] active:scale-95 uppercase tracking-wider text-sm mt-4 border border-red-400 cursor-pointer"
+              >
+                Force Scene Clear
+              </button>
+            )}
+
+            {/* Citizen: Help message */}
+            {!isPolice && (
+              <div className="bg-blue-50 border border-blue-200 rounded-xl py-3 px-4 text-center mt-4">
+                <span className="text-blue-700 font-bold text-xs uppercase tracking-widest">
+                  🔴 Stay calm — Help is on the way
+                </span>
+              </div>
+            )}
           </div>
         </div>
       </div>
