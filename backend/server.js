@@ -58,6 +58,25 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
   return R * c;
 }
 
+// Proxied Route for OSRM to bypass Vercel HTTPS Mixed Content rules
+app.get('/route', (req, res) => {
+  const { startLat, startLng, endLat, endLng } = req.query;
+  const url = `http://router.project-osrm.org/route/v1/driving/${startLng},${startLat};${endLng},${endLat}?overview=full&geometries=geojson`;
+
+  http.get(url, (response) => {
+    let data = '';
+    response.on('data', chunk => data += chunk);
+    response.on('end', () => {
+      try {
+        const json = JSON.parse(data);
+        res.json(json);
+      } catch (e) {
+        res.status(500).json({ error: 'Parsing error' });
+      }
+    });
+  }).on('error', (err) => res.status(500).json({ error: 'OSRM Proxy error' }));
+});
+
 // Routes
 app.get('/personnel', async (req, res) => {
   try {

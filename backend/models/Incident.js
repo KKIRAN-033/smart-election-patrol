@@ -7,7 +7,6 @@ const incidentSchema = new mongoose.Schema({
   },
   incidentType: {
     type: String,
-    enum: ['Booth Capture', 'Violence', 'EVM Tampering', 'Suspicious Activity'],
     required: true,
     default: 'Suspicious Activity'
   },

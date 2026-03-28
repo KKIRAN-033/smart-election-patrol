@@ -29,10 +29,10 @@ export const getRandomPatrolDestination = (lat, lng, radiusKm = 0.5) => {
   return { lat: lat + dLat, lng: lng + dLng };
 };
 
-// Fetches real driving directions dynamically over actual network (OSRM fallback)
-// Straight straight to public OSRM for dynamic fast rendering.
+// Fetches real driving directions dynamically over actual network (Proxied OSRM)
 export const fetchRoute = async (startLat, startLng, endLat, endLng) => {
-  const url = `http://router.project-osrm.org/route/v1/driving/${startLng},${startLat};${endLng},${endLat}?overview=full&geometries=geojson`;
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+  const url = `${API_URL}/route?startLat=${startLat}&startLng=${startLng}&endLat=${endLat}&endLng=${endLng}`;
 
   try {
     const controller = new AbortController();

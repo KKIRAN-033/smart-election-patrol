@@ -2,6 +2,7 @@ import { useState } from 'react';
 
 export default function DispatchForm({ selectedPos, onSubmit, onCancel }) {
   const [incidentType, setIncidentType] = useState('Booth Capture');
+  const [customType, setCustomType] = useState('');
   const [severityLevel, setSeverityLevel] = useState('High');
 
   if (!selectedPos) return null;
@@ -13,7 +14,7 @@ export default function DispatchForm({ selectedPos, onSubmit, onCancel }) {
         {/* Header Ribbon */}
         <div className="bg-slate-900 p-4 border-b border-slate-700 flex justify-between items-center">
           <h2 className="text-white font-black text-lg tracking-wider flex items-center gap-2">
-            <span className="text-red-500 animate-pulse">●</span> ADMIN CONTROL PANEL
+            <span className="text-red-500 animate-pulse">●</span> REPORT INCIDENT
           </h2>
           <button onClick={onCancel} className="text-slate-400 hover:text-white font-bold transition">✕</button>
         </div>
@@ -25,13 +26,25 @@ export default function DispatchForm({ selectedPos, onSubmit, onCancel }) {
             <select 
               value={incidentType} 
               onChange={e => setIncidentType(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-xl px-4 py-3 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-xl px-4 py-3 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 mb-3"
             >
               <option value="Booth Capture">Booth Capture</option>
               <option value="Violence">Violence</option>
               <option value="EVM Tampering">EVM Tampering</option>
               <option value="Suspicious Activity">Suspicious Activity</option>
+              <option value="Other">Other (Custom Issue)</option>
             </select>
+            
+            {incidentType === 'Other' && (
+              <input 
+                type="text" 
+                value={customType}
+                onChange={e => setCustomType(e.target.value)}
+                placeholder="Describe the issue... (e.g. Accident, Blocked Road)"
+                className="w-full bg-white border border-blue-400 text-slate-800 rounded-xl px-4 py-3 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-600 shadow-inner animate-in fade-in slide-in-from-top-2"
+                autoFocus
+              />
+            )}
           </div>
 
           <div>
@@ -57,7 +70,8 @@ export default function DispatchForm({ selectedPos, onSubmit, onCancel }) {
 
           <button 
             onClick={() => {
-              onSubmit(selectedPos, incidentType, severityLevel);
+              const finalType = incidentType === 'Other' ? (customType || 'Unknown General Issue') : incidentType;
+              onSubmit(selectedPos, finalType, severityLevel);
             }}
             className="w-full bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 text-white text-xl font-black py-4 rounded-xl shadow-[0_5px_15px_rgba(220,38,38,0.4)] transform transition hover:-translate-y-1 active:scale-95 flex items-center justify-center gap-3 border-2 border-white ring-2 ring-red-500/30 tracking-widest"
           >
