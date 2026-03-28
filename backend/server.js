@@ -58,23 +58,51 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
   return R * c;
 }
 
-// Proxied Route for OSRM to bypass Vercel HTTPS Mixed Content rules
-app.get('/route', (req, res) => {
-  const { startLat, startLng, endLat, endLng } = req.query;
-  const url = `http://router.project-osrm.org/route/v1/driving/${startLng},${startLat};${endLng},${endLat}?overview=full&geometries=geojson`;
+// Proxied Route for OSRM — tries multiple servers for maximum reliability
+// This is the backbone that makes police cars follow REAL ROADS like Google Maps!
+const OSRM_SERVERS = [
+  'http://router.project-osrm.org',
+  'http://routing.openstreetmap.de/routed-car'
+];
 
-  http.get(url, (response) => {
+const fetchOSRM = (url) => new Promise((resolve, reject) => {
+  const request = http.get(url, { timeout: 8000 }, (response) => {
     let data = '';
     response.on('data', chunk => data += chunk);
     response.on('end', () => {
       try {
         const json = JSON.parse(data);
-        res.json(json);
+        if (json.routes && json.routes[0]) {
+          resolve(json);
+        } else {
+          reject(new Error('No routes found'));
+        }
       } catch (e) {
-        res.status(500).json({ error: 'Parsing error' });
+        reject(new Error('Parse error'));
       }
     });
-  }).on('error', (err) => res.status(500).json({ error: 'OSRM Proxy error' }));
+  });
+  request.on('error', reject);
+  request.on('timeout', () => { request.destroy(); reject(new Error('Timeout')); });
+});
+
+app.get('/route', async (req, res) => {
+  const { startLat, startLng, endLat, endLng } = req.query;
+  if (!startLat || !startLng || !endLat || !endLng) {
+    return res.status(400).json({ error: 'Missing coordinates' });
+  }
+
+  for (const server of OSRM_SERVERS) {
+    try {
+      const url = `${server}/route/v1/driving/${startLng},${startLat};${endLng},${endLat}?overview=full&geometries=geojson`;
+      const json = await fetchOSRM(url);
+      return res.json(json); // Success! Return road route instantly
+    } catch (e) {
+      console.warn(`[Route Proxy] ${server} failed:`, e.message);
+    }
+  }
+
+  res.status(502).json({ error: 'All OSRM routing servers failed' });
 });
 
 // Routes
@@ -136,41 +164,7 @@ app.delete('/station/:id', async (req, res) => {
   }
 });
 
-app.get('/stations', async (req, res) => {
-  try {
-    const stations = await Station.find();
-    res.json(stations);
-  } catch (error) {
-    res.status(500).json({ error: 'Server error fetching stations' });
-  }
-});
 
-app.post('/station', async (req, res) => {
-  const { name, location } = req.body;
-  if (!location || !location.lat || !location.lng) return res.status(400).json({ error: 'Valid location required' });
-  try {
-    const newStation = new Station({
-      name: name || 'Police Booth',
-      location: location,
-      officersAvailable: 1
-    });
-    await newStation.save();
-    io.emit('station_created', newStation);
-    res.status(201).json(newStation);
-  } catch (error) {
-    res.status(500).json({ error: 'Error creating station' });
-  }
-});
-
-app.delete('/station/:id', async (req, res) => {
-  try {
-    await Station.findByIdAndDelete(req.params.id);
-    io.emit('station_deleted', req.params.id);
-    res.json({ message: 'Station deleted' });
-  } catch (error) {
-    res.status(500).json({ error: 'Error deleting station' });
-  }
-});
 
 app.get('/incidents', async (req, res) => {
   try {

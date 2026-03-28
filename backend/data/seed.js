@@ -32,13 +32,13 @@ async function seed() {
   try {
     await mongoose.connect(MONGO_URI);
     console.log('Connected to DB...');
-    
+
     await Officer.deleteMany();
     console.log('Cleared existing officers...');
-    
+
     await Officer.insertMany(officersData);
     console.log(`Inserted ${officersData.length} mock officers! Huge Fleet Generated!`);
-    
+
     process.exit(0);
   } catch (error) {
     console.error('Error seeding DB:', error);

@@ -2,7 +2,6 @@ import { useEffect, useState, useRef } from 'react';
 import { ShieldAlert } from 'lucide-react';
 import { Marker, Polyline, useMap } from 'react-leaflet';
 import L from 'leaflet';
-import { calculateDistance, fetchRoute } from '../utils/geo';
 
 // Top Bar UI Component
 export function PoliceTopbar() {
