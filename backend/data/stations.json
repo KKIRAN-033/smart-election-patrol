@@ -1,0 +1,22 @@
+[
+  {
+    "name": "Central Command Ananthapuram",
+    "location": { "lat": 14.681, "lng": 77.599 },
+    "officersAvailable": 45
+  },
+  {
+    "name": "North District Headquarters",
+    "location": { "lat": 14.698, "lng": 77.585 },
+    "officersAvailable": 22
+  },
+  {
+    "name": "South Highway Precinct",
+    "location": { "lat": 14.655, "lng": 77.610 },
+    "officersAvailable": 18
+  },
+  {
+    "name": "Rural Border Checkpost",
+    "location": { "lat": 14.650, "lng": 77.550 },
+    "officersAvailable": 7
+  }
+]
