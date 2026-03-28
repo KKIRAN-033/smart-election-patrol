@@ -6,6 +6,7 @@ import FloatingDashboard from './FloatingDashboard';
 import DispatchForm from './DispatchForm';
 import BoothManager from './BoothManager';
 import { Popup } from 'react-leaflet';
+import { PoliceTopbar, PoliceGPSMarker } from './PoliceTrackerOverlay';
 
 // Advanced UI/UX Mapping Layer Collection for Judges!
 const TILE_LAYERS = {
@@ -81,6 +82,8 @@ export default function Map({ officers, incidents, stations = [], onReportIncide
   const [selectedPos, setSelectedPos] = useState(null);
   const [activeTracker, setActiveTracker] = useState(null);
 
+  const isPolice = localStorage.getItem('role') === 'police';
+
   // High-End Map Tactical Layer State
   const [activeLayer, setActiveLayer] = useState(TILE_LAYERS.standard);
 
@@ -96,11 +99,25 @@ export default function Map({ officers, incidents, stations = [], onReportIncide
 
   return (
     <div className={`relative w-full h-screen font-sans overflow-hidden ${activeLayer.id === 'command' || activeLayer.id === 'satellite' ? 'bg-black' : 'bg-gray-100'}`}>
+      {isPolice && <PoliceTopbar />}
+      {isPolice && (
+        <FloatingDashboard
+          activeTracker={activeTracker}
+          onResolve={handleDashboardResolve}
+        />
+      )}
 
-      <FloatingDashboard
-        activeTracker={activeTracker}
-        onResolve={handleDashboardResolve}
-      />
+      {/* GLOBAL LOGOUT BUTTON */}
+      <button 
+        onClick={() => {
+          localStorage.removeItem('patrol_token');
+          localStorage.removeItem('role');
+          window.location.href = '/login';
+        }}
+        className="absolute top-4 right-4 z-[4000] bg-slate-900/90 hover:bg-red-600 text-white border border-slate-700 hover:border-red-500 font-bold uppercase tracking-widest text-[10px] py-2 px-4 rounded-full shadow-lg transition-all backdrop-blur-md"
+      >
+        Logout
+      </button>
 
       {/* TACTICAL MAP SELECTOR OVERLAY (GLASSMORPHIC) */}
       <div className="absolute left-6 top-1/2 transform -translate-y-1/2 z-[2000] flex flex-col gap-3">
@@ -139,6 +156,8 @@ export default function Map({ officers, incidents, stations = [], onReportIncide
           url={activeLayer.url}
           attribution={activeLayer.attr}
         />
+
+        {isPolice && <PoliceGPSMarker incidents={incidents} />}
 
         <LocationSelector onLocationSelect={setSelectedPos} />
 
@@ -186,12 +205,14 @@ export default function Map({ officers, incidents, stations = [], onReportIncide
               <div className="flex flex-col items-center gap-2 p-1">
                 <span className="font-black text-slate-800 text-sm">{station.name}</span>
                 <span className="text-xs text-slate-500 font-bold mb-1">Fixed Location</span>
-                <button 
-                  onClick={() => onDeleteBooth(station._id)}
-                  className="w-full bg-red-500 hover:bg-red-600 text-white font-black uppercase tracking-widest text-[10px] py-2 px-4 rounded-lg shadow-md transition-transform active:scale-95"
-                >
-                  Delete Outpost
-                </button>
+                {isPolice && (
+                  <button 
+                    onClick={() => onDeleteBooth(station._id)}
+                    className="w-full bg-red-500 hover:bg-red-600 text-white font-black uppercase tracking-widest text-[10px] py-2 px-4 rounded-lg shadow-md transition-transform active:scale-95"
+                  >
+                    Delete Outpost
+                  </button>
+                )}
               </div>
             </Popup>
           </Marker>
@@ -233,13 +254,15 @@ export default function Map({ officers, incidents, stations = [], onReportIncide
       )}
 
       {/* ADMIN ADD BOOTH WIDGET */}
-      <BoothManager 
-        selectedPos={selectedPos} 
-        onAddBooth={(latLng) => {
-          onAddBooth(latLng);
-          setSelectedPos(null); // Clear map selection after placing booth
-        }} 
-      />
+      {isPolice && (
+        <BoothManager 
+          selectedPos={selectedPos} 
+          onAddBooth={(latLng) => {
+            onAddBooth(latLng);
+            setSelectedPos(null); // Clear map selection after placing booth
+          }} 
+        />
+      )}
 
     </div>
   );

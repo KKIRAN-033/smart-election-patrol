@@ -1,13 +1,23 @@
 import { useEffect, useState } from 'react';
 import { io } from 'socket.io-client';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import Map from './components/Map';
+import Login from './components/Login';
 
 // Connecting to backend
 // Will use localhost or deployed URL based on ENV
 const SOCKET_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
-function App() {
+const ProtectedRoute = ({ children }) => {
+  const token = localStorage.getItem('patrol_token');
+  if (!token) {
+    return <Navigate to="/login" replace />;
+  }
+  return children;
+};
+
+function HomeMap() {
   const [officers, setOfficers] = useState([]);
   const [incidents, setIncidents] = useState([]);
   const [stations, setStations] = useState([]);
@@ -206,6 +216,23 @@ function App() {
         onDeleteBooth={handleDeleteBooth}
       />
     </div>
+  );
+}
+
+function App() {
+  return (
+    <Routes>
+      <Route path="/" element={<Navigate to="/map" replace />} />
+      <Route path="/login" element={<Login />} />
+      <Route 
+        path="/map" 
+        element={
+          <ProtectedRoute>
+            <HomeMap />
+          </ProtectedRoute>
+        } 
+      />
+    </Routes>
   );
 }
 
