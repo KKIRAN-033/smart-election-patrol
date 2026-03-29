@@ -70,6 +70,20 @@ const shieldIcon = L.divIcon({
   iconAnchor: [19, 38]
 });
 
+// Live Peer Police Icon
+const peerPoliceIcon = L.divIcon({
+  className: 'custom-div-icon',
+  html: `<div class="peer-police-marker" style="filter: drop-shadow(0 0 10px #3b82f6); border: 3px solid #3b82f6; border-radius: 50%; background: #eff6ff; display: flex; align-items: center; justify-content: center; width: 40px; height: 40px;">
+           <span style="font-size: 20px;">🚓</span>
+           <span class="absolute -top-1 -right-1 flex h-3 w-3">
+             <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+             <span class="relative inline-flex rounded-full h-3 w-3 bg-blue-500"></span>
+           </span>
+         </div>`,
+  iconSize: [40, 40],
+  iconAnchor: [20, 20]
+});
+
 function LocationSelector({ onLocationSelect }) {
   useMapEvents({
     click(e) {
@@ -79,7 +93,7 @@ function LocationSelector({ onLocationSelect }) {
   return null;
 }
 
-export default function Map({ officers, incidents, stations = [], onReportIncident, onResolve, onAddBooth, onDeleteBooth }) {
+export default function Map({ socket, liveActivePolice = {}, officers, incidents, stations = [], onReportIncident, onResolve, onAddBooth, onDeleteBooth }) {
   const [selectedPos, setSelectedPos] = useState(null);
   const [activeTracker, setActiveTracker] = useState(null);
   const navigate = useNavigate();
@@ -158,9 +172,26 @@ export default function Map({ officers, incidents, stations = [], onReportIncide
           attribution={activeLayer.attr}
         />
 
-        {isPolice && <PoliceGPSMarker incidents={incidents} />}
+        {isPolice && <PoliceGPSMarker incidents={incidents} socket={socket} />}
 
         <LocationSelector onLocationSelect={setSelectedPos} />
+
+        {/* Live Active Connected Peers (Other Police Officers streaming their GPS) */}
+        {Object.values(liveActivePolice).map(peer => (
+          <Marker
+            key={`peer-${peer.id}`}
+            position={[peer.lat, peer.lng]}
+            icon={peerPoliceIcon}
+            zIndexOffset={1900}
+          >
+            <Popup className="outpost-popup" closeButton={false}>
+              <div className="flex flex-col items-center gap-1 p-1">
+                <span className="font-black text-blue-800 text-xs">Active Patrol Unit</span>
+                <span className="text-[10px] text-blue-600 font-bold">Live GPS Tracker Relay</span>
+              </div>
+            </Popup>
+          </Marker>
+        ))}
 
         {/* Selected Coordinates Pin - Instantly displays the Massive Radar Ping on click! */}
         {selectedPos && (

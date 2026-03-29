@@ -23,6 +23,8 @@ function HomeMap() {
   const [stations, setStations] = useState([]);
   const [socket, setSocket] = useState(null);
   const [dispatchAlert, setDispatchAlert] = useState(null);
+  const [liveActivePolice, setLiveActivePolice] = useState({}); // Stores { id: { lat, lng } }
+
   // Initial Fetch & Socket Setup
   useEffect(() => {
     // 1. Fetch data
@@ -104,6 +106,18 @@ function HomeMap() {
 
     newSocket.on('station_deleted', (stationId) => {
       setStations(prev => prev.filter(s => s._id !== stationId));
+    });
+
+    newSocket.on('live_police_location_update', (data) => {
+      setLiveActivePolice(prev => ({ ...prev, [data.id]: data }));
+    });
+
+    newSocket.on('live_police_disconnected', (socketId) => {
+      setLiveActivePolice(prev => {
+        const copy = { ...prev };
+        delete copy[socketId];
+        return copy;
+      });
     });
 
     return () => newSocket.close();
@@ -207,6 +221,8 @@ function HomeMap() {
       )}
 
       <Map 
+        socket={socket}
+        liveActivePolice={liveActivePolice}
         officers={officers} 
         incidents={incidents} 
         stations={stations}

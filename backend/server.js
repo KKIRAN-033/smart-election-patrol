@@ -268,13 +268,17 @@ app.patch('/incident/status', async (req, res) => {
 io.on('connection', (socket) => {
   console.log('Client connected:', socket.id);
   
-  // Could implement specific live tracking relay events here if 
-  // officer app was mobile. Since we're doing the interpolation 
-  // on the general client for demo purposes, we don't need distinct socket events 
-  // for coordinate ticks, but it's supported!
+  // Custom Live GPS Tracking Event
+  // When a connected police app emits 'live_police_location', broadcast it immediately to all other connected peers
+  socket.on('live_police_location', (data) => {
+    // Include the socket.id so the frontend can track individual devices
+    socket.broadcast.emit('live_police_location_update', { id: socket.id, lat: data.lat, lng: data.lng, status: data.status });
+  });
 
   socket.on('disconnect', () => {
     console.log('Client disconnected:', socket.id);
+    // Notify all clients to remove this device's marker from their maps
+    io.emit('live_police_disconnected', socket.id);
   });
 });
 

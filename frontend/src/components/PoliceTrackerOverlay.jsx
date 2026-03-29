@@ -39,7 +39,7 @@ const createMyPoliceIcon = (status) => {
   });
 };
 
-export function PoliceGPSMarker({ incidents }) {
+export function PoliceGPSMarker({ incidents, socket }) {
   const map = useMap();
   const [position, setPosition] = useState(null);
   const [status, setStatus] = useState('idle'); // idle or moving
@@ -61,6 +61,11 @@ export function PoliceGPSMarker({ incidents }) {
           if (status === 'idle') {
             setPosition(newPos);
             currentPosRef.current = newPos;
+            
+            // Broadcast location to all peers globally
+            if (socket) {
+              socket.emit('live_police_location', { lat: newPos.lat, lng: newPos.lng, status });
+            }
           }
         },
         (err) => console.warn("GPS Error:", err),
@@ -75,6 +80,10 @@ export function PoliceGPSMarker({ incidents }) {
          setPosition(fallbackPos);
          currentPosRef.current = fallbackPos;
          map.flyTo([14.68, 77.59], 14, { duration: 2 });
+         
+         if (socket) {
+           socket.emit('live_police_location', { lat: fallbackPos.lat, lng: fallbackPos.lng, status });
+         }
       }
     }, 3000);
 
