@@ -7,6 +7,7 @@ import DispatchForm from './DispatchForm';
 import BoothManager from './BoothManager';
 import { Popup } from 'react-leaflet';
 import { PoliceTopbar, PoliceGPSMarker } from './PoliceTrackerOverlay';
+import { useNavigate } from 'react-router-dom';
 
 // Advanced UI/UX Mapping Layer Collection for Judges!
 const TILE_LAYERS = {
@@ -81,6 +82,7 @@ function LocationSelector({ onLocationSelect }) {
 export default function Map({ officers, incidents, stations = [], onReportIncident, onResolve, onAddBooth, onDeleteBooth }) {
   const [selectedPos, setSelectedPos] = useState(null);
   const [activeTracker, setActiveTracker] = useState(null);
+  const navigate = useNavigate();
 
   const isPolice = localStorage.getItem('role') === 'police';
 
@@ -111,7 +113,7 @@ export default function Map({ officers, incidents, stations = [], onReportIncide
         onClick={() => {
           localStorage.removeItem('patrol_token');
           localStorage.removeItem('role');
-          window.location.href = '/login';
+          navigate('/login');
         }}
         className="absolute top-4 right-4 z-[4000] bg-slate-900/90 hover:bg-red-600 text-white border border-slate-700 hover:border-red-500 font-bold uppercase tracking-widest text-[10px] py-2 px-4 rounded-full shadow-lg transition-all backdrop-blur-md"
       >
