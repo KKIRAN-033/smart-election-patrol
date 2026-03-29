@@ -73,7 +73,6 @@ export function PoliceGPSMarker({ incidents, socket }) {
       );
     }
     
-    // Fallback if no GPS is available after 3 seconds: Start at a random default
     const fallbackTimeout = setTimeout(() => {
       if (!currentPosRef.current) {
          const fallbackPos = { lat: 14.68, lng: 77.59 };
@@ -87,11 +86,19 @@ export function PoliceGPSMarker({ incidents, socket }) {
       }
     }, 3000);
 
+    // Heartbeat: Constantly broadcast known location every 5 seconds so new connected users (like Citizens) see us even if we aren't moving.
+    const heartbeatParams = setInterval(() => {
+        if (currentPosRef.current && socket) {
+            socket.emit('live_police_location', { lat: currentPosRef.current.lat, lng: currentPosRef.current.lng, status });
+        }
+    }, 5000);
+
     return () => {
       if (watchId) navigator.geolocation.clearWatch(watchId);
       clearTimeout(fallbackTimeout);
+      clearInterval(heartbeatParams);
     };
-  }, [map, status]);
+  }, [map, status, socket]);
 
   // 2. Incident Handling Removed to prevent duplicate responders.
   // The local police marker will now strictly represent the logged-in officer's actual physical location.
