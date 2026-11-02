@@ -1,22 +1,28 @@
-import { useState } from 'react';
-import { MapContainer, TileLayer, Marker, useMapEvents, Polyline } from 'react-leaflet';
+import { useState, useEffect } from 'react';
+import { MapContainer, TileLayer, Marker, useMapEvents, Polyline, Popup } from 'react-leaflet';
 import L from 'leaflet';
 import OfficerMarker from './OfficerMarker';
 import FloatingDashboard from './FloatingDashboard';
 import DispatchForm from './DispatchForm';
 import BoothManager from './BoothManager';
-import { Popup } from 'react-leaflet';
-import { PoliceTopbar, PoliceGPSMarker } from './PoliceTrackerOverlay';
+import { 
+  PoliceTopbar, 
+  PoliceGPSMarker, 
+  CitizenTopbar, 
+  CitizenGPSMarker, 
+  resolveLocalCoordinates, 
+  RVR_COLLEGE_LOCATION 
+} from './PoliceTrackerOverlay';
 import { useNavigate } from 'react-router-dom';
 
-// Advanced UI/UX Mapping Layer Collection for Judges!
+// Map Tile Layers (all free, no API keys)
 const TILE_LAYERS = {
   standard: {
     id: 'standard',
     name: "Clean View",
     icon: "🗺️",
-    url: "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
-    attr: "&copy; CARTO"
+    url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+    attr: "&copy; OpenStreetMap"
   },
   satellite: {
     id: 'satellite',
@@ -27,7 +33,7 @@ const TILE_LAYERS = {
   },
   tactical: {
     id: 'tactical',
-    name: "Tactical Tracks", // Footpaths & Bicycles 
+    name: "Tactical Tracks",
     icon: "🚲",
     url: "https://{s}.tile-cyclosm.openstreetmap.fr/cyclosm/{z}/{x}/{y}.png",
     attr: "&copy; CyclOSM"
@@ -36,11 +42,10 @@ const TILE_LAYERS = {
     id: 'command',
     name: "Night Command",
     icon: "🏙️",
-    url: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
-    attr: "&copy; CARTO"
+    url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+    attr: "&copy; OpenStreetMap"
   }
 };
-
 
 // Custom CSS Radar Pulse for the Incident Location
 const radarIcon = L.divIcon({
@@ -52,14 +57,6 @@ const radarIcon = L.divIcon({
          </div>`,
   iconSize: [40, 40],
   iconAnchor: [20, 20]
-});
-
-// A standard user footprint icon for setting coordinates
-const userDropIcon = L.divIcon({
-  className: 'custom-div-icon',
-  html: `<div style="font-size: 24px; text-shadow: 0px 4px 10px rgba(0,0,0,0.5);">📍</div>`,
-  iconSize: [24, 24],
-  iconAnchor: [12, 24]
 });
 
 // Powerful Shield Outpost Icon
@@ -111,11 +108,17 @@ export default function Map({ socket, liveActivePolice = {}, officers, incidents
   };
 
   const activeIncidentExists = incidents.some(i => i.status === 'active');
-  if (!activeIncidentExists && activeTracker) setActiveTracker(null);
+
+  // Clear tracker when no active incidents exist
+  useEffect(() => {
+    if (!activeIncidentExists && activeTracker) setActiveTracker(null);
+  }, [activeIncidentExists, activeTracker]);
 
   return (
     <div className={`relative w-full h-screen font-sans overflow-hidden ${activeLayer.id === 'command' || activeLayer.id === 'satellite' ? 'bg-black' : 'bg-gray-100'}`}>
-      {isPolice && <PoliceTopbar />}
+      {/* Top Bar for Police or Citizen */}
+      {isPolice ? <PoliceTopbar /> : <CitizenTopbar />}
+
       <FloatingDashboard
         activeTracker={activeTracker}
         onResolve={handleDashboardResolve}
@@ -129,18 +132,18 @@ export default function Map({ socket, liveActivePolice = {}, officers, incidents
           localStorage.removeItem('role');
           navigate('/login');
         }}
-        className="absolute top-4 right-4 z-[4000] bg-slate-900/90 hover:bg-red-600 text-white border border-slate-700 hover:border-red-500 font-bold uppercase tracking-widest text-[10px] py-2 px-4 rounded-full shadow-lg transition-all backdrop-blur-md"
+        className="absolute top-4 right-4 z-[4000] bg-slate-900/90 hover:bg-red-600 text-white border border-slate-700 hover:border-red-500 font-bold uppercase tracking-widest text-[10px] py-2 px-4 rounded-full shadow-lg transition-all backdrop-blur-md cursor-pointer"
       >
         Logout
       </button>
 
-      {/* TACTICAL MAP SELECTOR OVERLAY (GLASSMORPHIC) */}
+      {/* TACTICAL MAP SELECTOR OVERLAY */}
       <div className="absolute left-6 top-1/2 transform -translate-y-1/2 z-[2000] flex flex-col gap-3">
         {Object.values(TILE_LAYERS).map((layer) => (
           <button
             key={layer.id}
             onClick={() => setActiveLayer(layer)}
-            className={`group flex items-center gap-3 p-3 rounded-2xl transition-all duration-300 backdrop-blur-md shadow-lg border ${activeLayer.id === layer.id
+            className={`group flex items-center gap-3 p-3 rounded-2xl transition-all duration-300 backdrop-blur-md shadow-lg border cursor-pointer ${activeLayer.id === layer.id
                 ? 'bg-blue-600/90 border-blue-400 text-white w-48'
                 : 'bg-white/70 border-white/50 text-slate-700 hover:bg-white/95 w-14 hover:w-48 overflow-hidden'
               }`}
@@ -159,20 +162,26 @@ export default function Map({ socket, liveActivePolice = {}, officers, incidents
         ))}
       </div>
 
-      {/* CORE LEAFLET MAP */}
+      {/* CORE LEAFLET MAP (Centered across RVR College & Guntur Patrol Zone) */}
       <MapContainer
-        center={[14.68, 77.59]}
-        zoom={13}
+        center={[16.275, 80.370]}
+        zoom={12}
         className="w-full h-full z-0"
         zoomControl={false}
       >
         <TileLayer
-          key={activeLayer.id} // Forces instantaneous re-render trick on layer swap
+          key={activeLayer.id}
           url={activeLayer.url}
           attribution={activeLayer.attr}
+          className={activeLayer.id === 'command' ? 'dark-tiles' : ''}
         />
 
-        {isPolice && <PoliceGPSMarker incidents={incidents} socket={socket} />}
+        {/* Live GPS Tracking Marker: Police Officer or Citizen */}
+        {isPolice ? (
+          <PoliceGPSMarker socket={socket} />
+        ) : (
+          <CitizenGPSMarker onReportHere={(pos) => setSelectedPos(pos)} />
+        )}
 
         <LocationSelector onLocationSelect={setSelectedPos} />
 
@@ -193,12 +202,12 @@ export default function Map({ socket, liveActivePolice = {}, officers, incidents
           </Marker>
         ))}
 
-        {/* Selected Coordinates Pin - Instantly displays the Massive Radar Ping on click! */}
+        {/* Selected Coordinates Pin */}
         {selectedPos && (
           <Marker position={[selectedPos.lat, selectedPos.lng]} icon={radarIcon} />
         )}
 
-        {/* Huge Pulsing Red Radar rings for the actual incident location! */}
+        {/* Pulsing Red Radar rings for actual active incidents */}
         {incidents.map(inc => (
           <Marker
             key={inc._id}
@@ -207,7 +216,7 @@ export default function Map({ socket, liveActivePolice = {}, officers, incidents
           />
         ))}
 
-        {/* Massive Police Fleet with Embedded Auto-Shrinking Real-Road Tracers */}
+        {/* Police Fleet with Real-Road Tracers */}
         {officers.map(officer => {
           const assignedIncident = incidents.find(
             i => i.status === 'active' &&
@@ -240,7 +249,7 @@ export default function Map({ socket, liveActivePolice = {}, officers, incidents
                 {isPolice && (
                   <button 
                     onClick={() => onDeleteBooth(station._id)}
-                    className="w-full bg-red-500 hover:bg-red-600 text-white font-black uppercase tracking-widest text-[10px] py-2 px-4 rounded-lg shadow-md transition-transform active:scale-95"
+                    className="w-full bg-red-500 hover:bg-red-600 text-white font-black uppercase tracking-widest text-[10px] py-2 px-4 rounded-lg shadow-md transition-transform active:scale-95 cursor-pointer"
                   >
                     Delete Outpost
                   </button>
@@ -252,7 +261,7 @@ export default function Map({ socket, liveActivePolice = {}, officers, incidents
 
       </MapContainer>
 
-      {/* ADMIN CONTROL PANEL (REPLACES RAW DISPATCH BUTTON) */}
+      {/* INCIDENT REPORT FORM */}
       {selectedPos && (
         <DispatchForm
           selectedPos={selectedPos}
@@ -264,22 +273,30 @@ export default function Map({ socket, liveActivePolice = {}, officers, incidents
         />
       )}
 
+      {/* AUTO-LOCATE / REPORT BUTTON (Positioned below topbar) */}
       {!selectedPos && (
         <button 
           onClick={() => {
             if (navigator.geolocation) {
               navigator.geolocation.getCurrentPosition(
-                (pos) => setSelectedPos({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-                (err) => alert("Please allow location access, or tap the map manually.")
+                (pos) => {
+                  const resolved = resolveLocalCoordinates(pos.coords.latitude, pos.coords.longitude);
+                  setSelectedPos(resolved);
+                },
+                (err) => {
+                  console.warn("Auto-locate fallback:", err);
+                  setSelectedPos(RVR_COLLEGE_LOCATION);
+                },
+                { enableHighAccuracy: true, timeout: 5000 }
               );
             } else {
-              alert("Geolocation is not supported by this browser.");
+              setSelectedPos(RVR_COLLEGE_LOCATION);
             }
           }}
-          className="absolute top-8 left-1/2 transform -translate-x-1/2 z-[1000] bg-white/95 backdrop-blur-lg px-8 py-4 rounded-full shadow-[0_10px_40px_rgba(0,0,0,0.1)] border border-gray-200 hover:bg-gray-50 transition cursor-pointer"
+          className="absolute top-20 left-1/2 transform -translate-x-1/2 z-[1000] bg-white/95 backdrop-blur-lg px-8 py-3.5 rounded-full shadow-[0_10px_40px_rgba(0,0,0,0.15)] border border-gray-200 hover:bg-gray-50 transition cursor-pointer"
         >
-          <p className="text-gray-800 font-bold flex items-center gap-3 text-sm tracking-widest uppercase">
-            <span className="w-4 h-4 bg-red-500 shadow-[0_0_15px_rgba(239,68,68,0.8)] rounded-full animate-ping"></span>
+          <p className="text-gray-800 font-bold flex items-center gap-3 text-xs tracking-widest uppercase">
+            <span className="w-3.5 h-3.5 bg-red-500 shadow-[0_0_15px_rgba(239,68,68,0.8)] rounded-full animate-ping"></span>
             Tap Map Or Auto-Locate
           </p>
         </button>
@@ -291,7 +308,7 @@ export default function Map({ socket, liveActivePolice = {}, officers, incidents
           selectedPos={selectedPos} 
           onAddBooth={(latLng) => {
             onAddBooth(latLng);
-            setSelectedPos(null); // Clear map selection after placing booth
+            setSelectedPos(null);
           }} 
         />
       )}

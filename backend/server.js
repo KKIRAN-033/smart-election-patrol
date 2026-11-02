@@ -4,12 +4,17 @@ import { createServer } from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+dotenv.config({ path: path.join(__dirname, '.env') });
+dotenv.config(); // fallback
 
 import Officer from './models/Officer.js';
 import Incident from './models/Incident.js';
 import Station from './models/Station.js';
-
-dotenv.config();
 
 const app = express();
 const httpServer = createServer(app);
@@ -20,31 +25,8 @@ const io = new Server(httpServer, {
   }
 });
 
-import http from 'http';
-
 app.use(cors());
 app.use(express.json());
-
-// Native polyfill for fetching specific Route length natively without hitting Table limits
-const getRouteDistance = (lat1, lon1, lat2, lon2) => new Promise((resolve) => {
-  const url = `http://router.project-osrm.org/route/v1/driving/${lon1},${lat1};${lon2},${lat2}?overview=false`;
-  http.get(url, (res) => {
-    let data = '';
-    res.on('data', chunk => data += chunk);
-    res.on('end', () => {
-      try {
-        const json = JSON.parse(data);
-        if (json.routes && json.routes[0]) {
-           resolve(json.routes[0].distance); // Output precisely physical meters
-        } else {
-           resolve(Infinity);
-        }
-      } catch (e) {
-        resolve(Infinity);
-      }
-    });
-  }).on('error', () => resolve(Infinity));
-});
 
 // Math utils for Haversine distance tracking (returns km)
 function calculateDistance(lat1, lon1, lat2, lon2) {
@@ -58,33 +40,27 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
   return R * c;
 }
 
-// Proxied Route for OSRM — tries multiple servers for maximum reliability
-// This is the backbone that makes police cars follow REAL ROADS like Google Maps!
+// Proxied Route for OSRM using native fetch (handles HTTPS redirects automatically)
 const OSRM_SERVERS = [
-  'http://router.project-osrm.org',
-  'http://routing.openstreetmap.de/routed-car'
+  'https://router.project-osrm.org',
+  'https://routing.openstreetmap.de/routed-car'
 ];
 
-const fetchOSRM = (url) => new Promise((resolve, reject) => {
-  const request = http.get(url, { timeout: 8000 }, (response) => {
-    let data = '';
-    response.on('data', chunk => data += chunk);
-    response.on('end', () => {
-      try {
-        const json = JSON.parse(data);
-        if (json.routes && json.routes[0]) {
-          resolve(json);
-        } else {
-          reject(new Error('No routes found'));
-        }
-      } catch (e) {
-        reject(new Error('Parse error'));
-      }
-    });
-  });
-  request.on('error', reject);
-  request.on('timeout', () => { request.destroy(); reject(new Error('Timeout')); });
-});
+const fetchOSRM = async (url) => {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15000);
+  try {
+    const response = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeout);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const json = await response.json();
+    if (json.routes && json.routes[0]) return json;
+    throw new Error('No routes found');
+  } catch (e) {
+    clearTimeout(timeout);
+    throw e;
+  }
+};
 
 app.get('/route', async (req, res) => {
   const { startLat, startLng, endLat, endLng } = req.query;
@@ -96,7 +72,7 @@ app.get('/route', async (req, res) => {
     try {
       const url = `${server}/route/v1/driving/${startLng},${startLat};${endLng},${endLat}?overview=full&geometries=geojson`;
       const json = await fetchOSRM(url);
-      return res.json(json); // Success! Return road route instantly
+      return res.json(json);
     } catch (e) {
       console.warn(`[Route Proxy] ${server} failed:`, e.message);
     }
@@ -104,7 +80,6 @@ app.get('/route', async (req, res) => {
 
   res.status(502).json({ error: 'All OSRM routing servers failed' });
 });
-
 // Routes
 app.get('/personnel', async (req, res) => {
   try {

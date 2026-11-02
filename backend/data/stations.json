@@ -1,22 +1,22 @@
 [
   {
-    "name": "Central Command Ananthapuram",
-    "location": { "lat": 14.681, "lng": 77.599 },
+    "name": "Central Command Guntur",
+    "location": { "lat": 16.3067, "lng": 80.4365 },
     "officersAvailable": 45
   },
   {
     "name": "North District Headquarters",
-    "location": { "lat": 14.698, "lng": 77.585 },
+    "location": { "lat": 16.3300, "lng": 80.4250 },
     "officersAvailable": 22
   },
   {
     "name": "South Highway Precinct",
-    "location": { "lat": 14.655, "lng": 77.610 },
+    "location": { "lat": 16.2750, "lng": 80.4550 },
     "officersAvailable": 18
   },
   {
     "name": "Rural Border Checkpost",
-    "location": { "lat": 14.650, "lng": 77.550 },
+    "location": { "lat": 16.2650, "lng": 80.3800 },
     "officersAvailable": 7
   }
 ]
